@@ -1,5 +1,7 @@
 # Sleeper Companion
 
+[![CI](https://github.com/AustinWinstanley/sleeper-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/AustinWinstanley/sleeper-companion/actions/workflows/ci.yml)
+
 iOS Home Screen and Lock Screen widgets for your [Sleeper](https://sleeper.com) fantasy football matchup: live-ish scores, records and rank, starting lineups, and a one-tap jump into the Sleeper app.
 
 An unofficial personal project, built for one league's group of friends. Not affiliated with Sleeper. See the [disclaimer](#disclaimer) below.
