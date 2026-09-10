@@ -1,0 +1,122 @@
+# XcodeGen spec. Run `xcodegen generate` after editing this file or adding source files
+# (everything under App/, Widget/, Shared/ is picked up automatically). The .xcodeproj is
+# generated output and not committed.
+#
+# Forking: change APP_BUNDLE_ID and DEVELOPMENT_TEAM below. The widget bundle ID, App Group,
+# iCloud key-value store ID and URL scheme all derive from them.
+name: SleeperCompanion
+
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    APP_BUNDLE_ID: com.austinwinstanley.sleepercompanion
+    DEVELOPMENT_TEAM: STK9NS6B5M
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+    SWIFT_VERSION: "5.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  SleeperCompanion:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - Shared
+    dependencies:
+      - target: SleeperCompanionWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Sleeper Companion
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # No custom crypto, so skip the export-compliance question on every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false
+        # sleepercompanion:// is what the widget opens; sleeper:// is what the app forwards to.
+        CFBundleURLTypes:
+          - CFBundleURLName: $(APP_BUNDLE_ID)
+            CFBundleURLSchemes: [sleepercompanion]
+        LSApplicationQueriesSchemes: [sleeper]
+    entitlements:
+      path: App/SleeperCompanion.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.$(APP_BUNDLE_ID)
+        com.apple.developer.ubiquity-kvstore-identifier: $(TeamIdentifierPrefix)$(APP_BUNDLE_ID)
+
+  SleeperCompanionWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widget
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).widget
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Sleeper Companion
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widget/SleeperCompanionWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.$(APP_BUNDLE_ID)
+        com.apple.developer.ubiquity-kvstore-identifier: $(TeamIdentifierPrefix)$(APP_BUNDLE_ID)
+
+  SleeperCompanionTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: SleeperCompanion
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  SleeperCompanion:
+    build:
+      targets:
+        SleeperCompanion: all
+        SleeperCompanionWidget: all
+        SleeperCompanionTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - SleeperCompanionTests
+    archive:
+      config: Release
+  SleeperCompanionWidget:
+    build:
+      targets:
+        SleeperCompanionWidget: all
+        SleeperCompanion: all
+    run:
+      config: Debug
+      executable: SleeperCompanion
+      # Xcode uses these to launch straight into the widget instead of the app.
+      environmentVariables:
+        _XCWidgetKind: MatchupWidget
+        _XCWidgetFamily: systemMedium
+        _XCWidgetDefaultView: timeline
