@@ -59,7 +59,7 @@ struct MatchupLoaderTests {
     }
 
     @Test func unknownPlayerNameIsEmptyUntilDirectoryExists() throws {
-        let starters = try Fixtures.build(userID: "U1", playerNames: [:]).mine.starters
+        let starters = try Fixtures.build(userID: "U1", context: WeekContext()).mine.starters
         #expect(starters[0].name == "")
         #expect(starters[2].name == "Empty")
     }
@@ -67,9 +67,8 @@ struct MatchupLoaderTests {
     @Test func playoffLabelCountsDownThenFlips() throws {
         let snapshot = try Fixtures.build(userID: "U1")
         #expect(snapshot.playoffLabel == "Playoffs in 12 wks")
-        let inPlayoffs = try MatchupLoader.build(league: Fixtures.league, users: Fixtures.users, rosters: Fixtures.rosters,
-                                                 rows: Fixtures.rows, week: 16, userID: "U1", playerNames: [:])
-        #expect(inPlayoffs.playoffLabel == "Playoffs")
+        // Past the start with no bracket loaded, the label still flips.
+        #expect(try Fixtures.build(userID: "U1", week: 16).playoffLabel == "Playoffs")
     }
 
     @Test func handoffURLCarriesTheLeague() throws {
