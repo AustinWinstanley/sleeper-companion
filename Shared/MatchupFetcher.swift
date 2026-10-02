@@ -19,6 +19,15 @@ enum MatchupResult {
     case needsSetup
     case loaded(LoadedMatchup)
     case failed(String)
+
+    /// When the widget should next refresh. Fresh data follows the NFL schedule; anything
+    /// stale or failed retries at the default pace.
+    var refreshInterval: TimeInterval {
+        if case .loaded(let loaded) = self, !loaded.stale {
+            return loaded.snapshot.refreshInterval
+        }
+        return RefreshPolicy.defaultInterval
+    }
 }
 
 /// Shared by the widget's timeline provider and the app's preview: fetch, cache, fall back.
