@@ -36,6 +36,8 @@ See README.md for the feature list, layout, and fork instructions.
 - Minimum iOS 17 (AppIntentConfiguration). Widget kinds: `MatchupWidget`, `TeamPanel`.
 - `systemExtraLargePortrait` (iOS 27 full-page size) is gated with `#if compiler(>=6.3)` plus
   `#available`, because CI's older Xcode has no such case. Not yet verified on an iOS 27 device.
+- Anything shown in Xcode's General tab (display name, app category, version, build) must be set in
+  project.yml. Edits made in Xcode are lost on the next `xcodegen generate`.
 - Set `TARGETED_DEVICE_FAMILY` per target in project.yml; XcodeGen's target presets override a
   project-level value, and a universal build fails App Store validation on orientations.
 - Storage: `user_id` in App Group defaults (source of truth), mirrored to iCloud key-value store.

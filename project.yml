@@ -38,11 +38,16 @@ targets:
         # which overrides a project-level value and triggers iPad orientation requirements.
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # What Xcode's General tab shows for Display Name and App Category. Set them here:
+        # edits made in Xcode are lost whenever the project is regenerated.
+        INFOPLIST_KEY_CFBundleDisplayName: Sleeper Companion
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.sports
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     info:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Sleeper Companion
+        LSApplicationCategoryType: public.app-category.sports
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         # No custom crypto, so skip the export-compliance question on every TestFlight upload.
