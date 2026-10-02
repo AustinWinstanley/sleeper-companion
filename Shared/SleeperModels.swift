@@ -40,6 +40,7 @@ struct League: Decodable, Identifiable, Hashable {
     let status: String?
     let settings: Settings?
     let rosterPositions: [String]?
+    let scoringSettings: [String: Double]?
 
     enum CodingKeys: String, CodingKey {
         case leagueID = "league_id"
@@ -48,6 +49,12 @@ struct League: Decodable, Identifiable, Hashable {
         case status
         case settings
         case rosterPositions = "roster_positions"
+        case scoringSettings = "scoring_settings"
+    }
+
+    /// Points per reception: 1 is PPR, 0.5 half, 0 standard. Picks which projection to show.
+    var receptionPoints: Double {
+        return scoringSettings?["rec"] ?? 0
     }
 
     var id: String {
@@ -190,5 +197,136 @@ struct MatchupRow: Decodable {
     /// Commissioner overrides win over computed points.
     var score: Double {
         return customPoints ?? points ?? 0
+    }
+}
+
+/// Where a player's NFL game stands this week. `unknown` means no schedule was available.
+enum GameStatus: String, Codable {
+    case upcoming
+    case live
+    case final
+    case bye
+    case unknown
+}
+
+/// One game from the undocumented schedule endpoint.
+struct ScheduledGame: Decodable {
+    let week: Int
+    let home: String
+    let away: String
+    /// "2026-10-04". The endpoint has no kickoff time.
+    let date: String
+    let status: String
+
+    /// Only pre_game and complete are certain; anything else that isn't a cancellation is
+    /// treated as in progress, since the live value has never been observed off-season.
+    var gameStatus: GameStatus {
+        switch status {
+        case "pre_game":
+            return .upcoming
+        case "complete":
+            return .final
+        case "canceled", "postponed":
+            return .unknown
+        default:
+            return .live
+        }
+    }
+}
+
+/// One player's entry from the undocumented weekly projections endpoint. Entries exist for
+/// unprojected players too, which is useful: they still carry team and injury status.
+struct RawProjection: Decodable {
+    struct Stats: Decodable {
+        let ppr: Double?
+        let half: Double?
+        let std: Double?
+
+        enum CodingKeys: String, CodingKey {
+            case ppr = "pts_ppr"
+            case half = "pts_half_ppr"
+            case std = "pts_std"
+        }
+    }
+
+    struct Player: Decodable {
+        let injuryStatus: String?
+
+        enum CodingKeys: String, CodingKey {
+            case injuryStatus = "injury_status"
+        }
+    }
+
+    let playerID: String
+    let team: String?
+    let stats: Stats?
+    let player: Player?
+
+    enum CodingKeys: String, CodingKey {
+        case playerID = "player_id"
+        case team
+        case stats
+        case player
+    }
+}
+
+/// The slim form of a projection that gets cached and passed around.
+struct PlayerProjection: Codable, Hashable {
+    let ppr: Double?
+    let half: Double?
+    let std: Double?
+    let team: String?
+    let injury: String?
+
+    /// The preset closest to the league's reception scoring. An approximation: leagues with
+    /// unusual scoring will differ from Sleeper's own in-app projection.
+    func points(receptionPoints: Double) -> Double? {
+        if receptionPoints >= 0.75 {
+            return ppr ?? half ?? std
+        }
+        if receptionPoints >= 0.25 {
+            return half ?? ppr ?? std
+        }
+        return std ?? half ?? ppr
+    }
+}
+
+struct LeagueTransaction: Decodable {
+    let type: String
+    let status: String
+    /// player_id → roster_id
+    let adds: [String: Int]?
+    let drops: [String: Int]?
+    let rosterIDs: [Int]?
+    let statusUpdated: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case status
+        case adds
+        case drops
+        case rosterIDs = "roster_ids"
+        case statusUpdated = "status_updated"
+    }
+}
+
+/// One game in the playoff bracket. `r` is the round (1 = first playoff week), `t1`/`t2` are
+/// roster ids once known, `w`/`l` are set when it is decided, `p` marks a placement game
+/// (1 = championship, 3 = third place).
+struct BracketMatch: Decodable {
+    let round: Int
+    let teamOne: Int?
+    let teamTwo: Int?
+    let winner: Int?
+    let loser: Int?
+    let place: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case round = "r"
+        case teamOne = "t1"
+        case teamTwo = "t2"
+        case winner = "w"
+        case loser = "l"
+        case place = "p"
     }
 }
