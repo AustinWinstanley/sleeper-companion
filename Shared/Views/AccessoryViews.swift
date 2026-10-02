@@ -185,6 +185,10 @@ struct TeamPanelView: View {
         if loaded.stale {
             return "Cached · \(team.recordWithRank)"
         }
+        // "5 left · proj 118.4 · 2-1" during the week, record and rank when there's no game info.
+        if let statusLine = team.statusLine {
+            return "\(statusLine) · \(team.record)"
+        }
         return "\(team.recordWithRank) · Wk \(loaded.snapshot.week)"
     }
 }

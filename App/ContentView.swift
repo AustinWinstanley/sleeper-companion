@@ -165,6 +165,16 @@ struct HomeView: View {
                 Text("Large widget")
             }
 
+            Section {
+                preview(height: 560) { loaded in
+                    MatchupExtraLargeView(loaded: loaded)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            } header: {
+                Text("Extra-large widget (iOS 27)")
+            }
+
             if leagues.count > 1 {
                 Section {
                     Picker("League", selection: $leagueID) {
@@ -182,7 +192,7 @@ struct HomeView: View {
             }
 
             Section {
-                Text("Long-press the Home Screen, tap +, and search for Sleeper Companion. Lock Screen: customize the Lock Screen and add it there. Scores update every 15–30 minutes as iOS allows.")
+                Text("Long-press the Home Screen, tap +, and search for Sleeper Companion. Lock Screen: customize the Lock Screen and add it there. Scores update about every 15 minutes during games and less often between them, as iOS allows.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Button("Refresh widgets now") {

@@ -64,6 +64,9 @@ struct TeamColumn: View {
     let avatar: UIImage?
     let leading: Bool
     var alignRight = false
+    /// The small widget has room for one detail line, so it shows game progress when there
+    /// is any and the record otherwise. Larger layouts show both.
+    var compact = false
 
     var body: some View {
         VStack(alignment: alignRight ? .trailing : .leading, spacing: 2) {
@@ -76,15 +79,28 @@ struct TeamColumn: View {
                     score
                 }
             }
-            Text(team.recordWithRank)
-                .font(.system(size: 11))
-                .foregroundStyle(.gray)
+            if compact {
+                detail(team.statusLine ?? team.recordWithRank)
+            } else {
+                detail(team.recordWithRank)
+                if let statusLine = team.statusLine {
+                    detail(statusLine)
+                }
+            }
             Text(team.teamName)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
+    }
+
+    private func detail(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11))
+            .foregroundStyle(.gray)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
     }
 
     private var score: some View {
@@ -95,7 +111,21 @@ struct TeamColumn: View {
     }
 }
 
-/// Week, league, playoff countdown, last updated. Shared by the medium and large layouts.
+/// "2 starters out" in orange, shown wherever the lineup has a slot that will score nothing.
+struct StarterWarning: View {
+    let text: String
+    var size: CGFloat = 9
+
+    var body: some View {
+        Label(text, systemImage: "exclamationmark.triangle.fill")
+            .font(.system(size: size, weight: .semibold))
+            .foregroundStyle(.orange)
+            .labelStyle(.titleAndIcon)
+            .lineLimit(1)
+    }
+}
+
+/// Week, league, playoff round or countdown, lineup warning, last updated.
 struct CenterColumn: View {
     let loaded: LoadedMatchup
 
@@ -115,6 +145,9 @@ struct CenterColumn: View {
                 Text(playoffLabel)
                     .font(.system(size: 9))
                     .foregroundStyle(.gray)
+            }
+            if let warning = loaded.snapshot.starterWarning {
+                StarterWarning(text: warning)
             }
             Spacer().frame(height: 4)
             Text(UpdatedLabel.text(for: loaded))
@@ -151,12 +184,17 @@ struct MatchupSmallView: View {
     var body: some View {
         let snapshot = loaded.snapshot
         VStack(alignment: .leading, spacing: 6) {
-            TeamColumn(team: snapshot.mine, avatar: loaded.myAvatar, leading: snapshot.iAmLeading)
+            TeamColumn(team: snapshot.mine, avatar: loaded.myAvatar, leading: snapshot.iAmLeading, compact: true)
             if let theirs = snapshot.theirs {
-                Text("vs · Week \(snapshot.week)")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.gray)
-                TeamColumn(team: theirs, avatar: loaded.theirAvatar, leading: !snapshot.iAmLeading)
+                // The warning replaces the "vs" line: a dead lineup slot matters more than the week number.
+                if let warning = snapshot.starterWarning {
+                    StarterWarning(text: warning, size: 10)
+                } else {
+                    Text("vs · Week \(snapshot.week)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.gray)
+                }
+                TeamColumn(team: theirs, avatar: loaded.theirAvatar, leading: !snapshot.iAmLeading, compact: true)
             } else {
                 Text("Bye week · Week \(snapshot.week)")
                     .font(.system(size: 12, weight: .semibold))
@@ -172,30 +210,20 @@ struct MatchupSmallView: View {
     }
 }
 
-/// Medium header on top, then the two starting lineups slot by slot. Per row the higher score
-/// is white and the lower one dimmed, same rule as the headline scores.
-struct MatchupLargeView: View {
-    let loaded: LoadedMatchup
+/// The two starting lineups slot by slot. Per row the higher number is brighter, same rule as
+/// the headline scores. Before kickoff a row shows the projection in italics; once a game is
+/// final the name dims; a live game gets a green dot. Injury and bye flags sit after the name.
+struct LineupTable: View {
+    let mine: TeamSummary
+    let theirs: TeamSummary?
 
     var body: some View {
-        let snapshot = loaded.snapshot
-        VStack(spacing: 8) {
-            MatchupMediumView(loaded: loaded)
-            Rectangle()
-                .fill(Color.white.opacity(0.15))
-                .frame(height: 1)
-            lineup(mine: snapshot.mine, theirs: snapshot.theirs)
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func lineup(mine: TeamSummary, theirs: TeamSummary?) -> some View {
         let rowCount = max(mine.starters.count, theirs?.starters.count ?? 0)
-        return VStack(spacing: 6) {
+        VStack(spacing: 6) {
             ForEach(0..<rowCount, id: \.self) { index in
                 let left = index < mine.starters.count ? mine.starters[index] : nil
                 let right = (theirs?.starters ?? []).count > index ? theirs?.starters[index] : nil
-                let leftLeads = (left?.points ?? 0) >= (right?.points ?? 0)
+                let leftLeads = (left?.displayPoints ?? 0) >= (right?.displayPoints ?? 0)
                 HStack(spacing: 6) {
                     starter(left, leads: leftLeads, alignRight: false)
                     Text(left?.shortSlot ?? right?.shortSlot ?? "")
@@ -212,26 +240,140 @@ struct MatchupLargeView: View {
 
     @ViewBuilder
     private func starter(_ line: StarterLine?, leads: Bool, alignRight: Bool) -> some View {
+        let isFinal = line?.status == .final
         let name = Text(line?.name ?? "")
             .font(.system(size: 11))
+            .foregroundStyle(isFinal ? Color(white: 0.5) : Color(white: 0.92))
             .lineLimit(1)
             .truncationMode(.tail)
-        let points = Text((line?.points ?? 0).points(decimals: 1))
+        let points = Text((line?.displayPoints ?? 0).points(decimals: 1))
             .font(.system(size: 11, weight: leads ? .semibold : .regular))
+            .italic(line?.showsProjection == true)
             .monospacedDigit()
+            .foregroundStyle(pointsColor(line, leads: leads))
         HStack(spacing: 4) {
             if alignRight {
                 points
                 Spacer(minLength: 0)
+                flags(line)
                 name
             } else {
                 name
+                flags(line)
                 Spacer(minLength: 0)
                 points
             }
         }
-        .foregroundStyle(leads ? Color.white : Color(white: 0.7))
         .frame(maxWidth: .infinity)
+    }
+
+    private func pointsColor(_ line: StarterLine?, leads: Bool) -> Color {
+        if line?.showsProjection == true {
+            return Color(white: 0.55)
+        }
+        return leads ? Color.white : Color(white: 0.7)
+    }
+
+    @ViewBuilder
+    private func flags(_ line: StarterLine?) -> some View {
+        if line?.status == .live {
+            Circle()
+                .fill(Color.green)
+                .frame(width: 5, height: 5)
+        }
+        if let tag = line?.tag {
+            Text(tag)
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(line?.isUnavailable == true ? Color.orange : Color.yellow)
+        }
+    }
+}
+
+/// Medium header on top, then the lineups, then one line of league context: the playoff
+/// path during playoffs, the latest roster move otherwise.
+struct MatchupLargeView: View {
+    let loaded: LoadedMatchup
+
+    var body: some View {
+        let snapshot = loaded.snapshot
+        VStack(spacing: 8) {
+            MatchupMediumView(loaded: loaded)
+            Divider()
+                .overlay(Color.white.opacity(0.15))
+            LineupTable(mine: snapshot.mine, theirs: snapshot.theirs)
+            Spacer(minLength: 0)
+            if let footer = snapshot.bracketPath.last ?? snapshot.transactionLine {
+                Text(footer)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.gray)
+                    .lineLimit(1)
+            }
+        }
+    }
+}
+
+/// The iOS 27 full-page size: everything in the large layout plus league standings, the full
+/// playoff path and the latest roster move.
+struct MatchupExtraLargeView: View {
+    let loaded: LoadedMatchup
+
+    var body: some View {
+        let snapshot = loaded.snapshot
+        VStack(spacing: 8) {
+            MatchupMediumView(loaded: loaded)
+            Divider()
+                .overlay(Color.white.opacity(0.15))
+            LineupTable(mine: snapshot.mine, theirs: snapshot.theirs)
+            Divider()
+                .overlay(Color.white.opacity(0.15))
+            standings(snapshot.standings)
+            Spacer(minLength: 0)
+            VStack(spacing: 2) {
+                ForEach(snapshot.bracketPath, id: \.self) { line in
+                    footnote(line)
+                }
+                if let transactionLine = snapshot.transactionLine {
+                    footnote(transactionLine)
+                }
+            }
+        }
+    }
+
+    private func standings(_ lines: [StandingLine]) -> some View {
+        VStack(spacing: 4) {
+            HStack {
+                Text("Standings")
+                Spacer()
+                Text("PF")
+            }
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(.gray)
+            ForEach(lines, id: \.rank) { line in
+                HStack(spacing: 6) {
+                    Text("\(line.rank)")
+                        .frame(width: 16, alignment: .trailing)
+                        .foregroundStyle(.gray)
+                    Text(line.teamName)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(line.record)
+                        .monospacedDigit()
+                    Text(line.pointsFor.points(decimals: 1))
+                        .monospacedDigit()
+                        .frame(width: 52, alignment: .trailing)
+                }
+                .font(.system(size: 11, weight: line.isMine ? .semibold : .regular))
+                .foregroundStyle(line.isMine || line.isOpponent ? Color.white : Color(white: 0.65))
+                .widgetAccentable(line.isMine)
+            }
+        }
+    }
+
+    private func footnote(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9))
+            .foregroundStyle(.gray)
+            .lineLimit(1)
     }
 }
 

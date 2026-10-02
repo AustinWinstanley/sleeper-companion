@@ -7,9 +7,6 @@ struct MatchupTimelineEntry: TimelineEntry {
 }
 
 struct MatchupProvider: AppIntentTimelineProvider {
-    // Refreshes are OS-budgeted (~15–30 min in practice); asking for less than 15 buys nothing.
-    private let refreshInterval: TimeInterval = 15 * 60
-
     func placeholder(in context: Context) -> MatchupTimelineEntry {
         return MatchupTimelineEntry(date: .now, result: .loaded(.sample))
     }
@@ -24,7 +21,7 @@ struct MatchupProvider: AppIntentTimelineProvider {
 
     func timeline(for configuration: SelectLeagueIntent, in context: Context) async -> Timeline<MatchupTimelineEntry> {
         let entry = await load(configuration)
-        return Timeline(entries: [entry], policy: .after(entry.date.addingTimeInterval(refreshInterval)))
+        return Timeline(entries: [entry], policy: .after(entry.date.addingTimeInterval(entry.result.refreshInterval)))
     }
 
     private func load(_ configuration: SelectLeagueIntent) async -> MatchupTimelineEntry {
@@ -82,21 +79,41 @@ struct MatchupWidgetEntryView: View {
         case .failed(let error):
             message(error)
         case .loaded(let loaded):
-            switch family {
-            case .systemSmall:
-                MatchupSmallView(loaded: loaded)
-            case .systemLarge:
-                MatchupLargeView(loaded: loaded)
-            case .accessoryRectangular:
-                MatchupRectangularView(loaded: loaded)
-            case .accessoryCircular:
-                MatchupCircularView(loaded: loaded)
-            case .accessoryInline:
-                MatchupInlineView(loaded: loaded)
-            default:
-                MatchupMediumView(loaded: loaded)
+            if isExtraLarge {
+                MatchupExtraLargeView(loaded: loaded)
+            } else {
+                standardLayout(loaded)
             }
         }
+    }
+
+    @ViewBuilder
+    private func standardLayout(_ loaded: LoadedMatchup) -> some View {
+        switch family {
+        case .systemSmall:
+            MatchupSmallView(loaded: loaded)
+        case .systemLarge:
+            MatchupLargeView(loaded: loaded)
+        case .accessoryRectangular:
+            MatchupRectangularView(loaded: loaded)
+        case .accessoryCircular:
+            MatchupCircularView(loaded: loaded)
+        case .accessoryInline:
+            MatchupInlineView(loaded: loaded)
+        default:
+            MatchupMediumView(loaded: loaded)
+        }
+    }
+
+    /// The full-page size iOS 27 added on iPhone. The case only exists in newer SDKs, hence
+    /// the compiler gate around the availability check.
+    private var isExtraLarge: Bool {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) {
+            return family == .systemExtraLargePortrait
+        }
+        #endif
+        return false
     }
 
     @ViewBuilder
@@ -122,13 +139,24 @@ struct MatchupWidgetEntryView: View {
 struct MatchupWidget: Widget {
     let kind = "MatchupWidget"
 
+    static var families: [WidgetFamily] {
+        var families: [WidgetFamily] = [.systemSmall, .systemMedium, .systemLarge,
+                                        .accessoryCircular, .accessoryRectangular, .accessoryInline]
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) {
+            families.append(.systemExtraLargePortrait)
+        }
+        #endif
+        return families
+    }
+
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: SelectLeagueIntent.self, provider: MatchupProvider()) { entry in
             MatchupWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Matchup")
         .description("Your current Sleeper fantasy matchup.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies(Self.families)
     }
 }
 

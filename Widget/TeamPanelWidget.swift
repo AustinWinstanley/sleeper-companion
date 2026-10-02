@@ -31,8 +31,6 @@ struct TeamPanelEntry: TimelineEntry {
 }
 
 struct TeamPanelProvider: AppIntentTimelineProvider {
-    private let refreshInterval: TimeInterval = 15 * 60
-
     func placeholder(in context: Context) -> TeamPanelEntry {
         return TeamPanelEntry(date: .now, result: .loaded(.sample), side: .mine)
     }
@@ -46,7 +44,7 @@ struct TeamPanelProvider: AppIntentTimelineProvider {
 
     func timeline(for configuration: TeamPanelIntent, in context: Context) async -> Timeline<TeamPanelEntry> {
         let entry = await load(configuration)
-        return Timeline(entries: [entry], policy: .after(entry.date.addingTimeInterval(refreshInterval)))
+        return Timeline(entries: [entry], policy: .after(entry.date.addingTimeInterval(entry.result.refreshInterval)))
     }
 
     private func load(_ configuration: TeamPanelIntent) async -> TeamPanelEntry {
