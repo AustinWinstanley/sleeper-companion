@@ -16,7 +16,14 @@ See README.md for the feature list, layout, and fork instructions.
   Score is `custom_points ?? points`. Record is in `roster.settings.{wins,losses,ties}`; season points
   are `fpts` + `fpts_decimal/100`. Rosters can have `co_owners`. `starters`/`starters_points` align with
   the league's non-bench `roster_positions`.
-- Public API has no projections, win probability, schedule or game status — do not attempt to show them.
+- The documented API has no projections, schedule or game status. Undocumented endpoints on
+  `https://api.sleeper.app` (no `/v1`) do: `/schedule/nfl/regular/{season}` (status `pre_game`/`complete`,
+  dates but no kickoff times; the live status value has not been observed, so anything else is treated
+  as live) and `/projections/nfl/{season}/{week}?season_type=regular&position[]=QB` (stats `pts_ppr`,
+  `pts_half_ppr`, `pts_std`; `team`; `player.injury_status`). ~2 MB across positions, so fetch one
+  position at a time and cache (`ProjectionDirectory`, 3 h). All of it is best effort: failures must
+  leave the core matchup working. No win probability and no game clock anywhere.
+- Also used: `/league/{id}/transactions/{week}` and `/league/{id}/winners_bracket` (documented).
 - iOS widget refresh is OS-budgeted (~15–30 min); scores will lag live games regardless of approach.
 - Sleeper's universal links only cover chat pages; `sleeper://` (bare scheme) opens the app.
 - Lock Screen has no full-row widget size; the Team Panel kind exists so two copies fill the row.
@@ -27,15 +34,20 @@ See README.md for the feature list, layout, and fork instructions.
   iCloud KVS id, widget bundle id and the `sleepercompanion://` scheme derive from them; Swift derives
   the App Group from the bundle identifier at runtime (see `UserStore`).
 - Minimum iOS 17 (AppIntentConfiguration). Widget kinds: `MatchupWidget`, `TeamPanel`.
+- `systemExtraLargePortrait` (iOS 27 full-page size) is gated with `#if compiler(>=6.3)` plus
+  `#available`, because CI's older Xcode has no such case. Not yet verified on an iOS 27 device.
+- Set `TARGETED_DEVICE_FAMILY` per target in project.yml; XcodeGen's target presets override a
+  project-level value, and a universal build fails App Store validation on orientations.
 - Storage: `user_id` in App Group defaults (source of truth), mirrored to iCloud key-value store.
 
 ## Tests / CI
 - `Tests/` is a Swift Testing bundle hosted by the app; fixtures are canned API JSON decoded through the
-  real models. `MatchupLoader.build` is the pure entry point to test; `load` only fetches.
+  real models. `MatchupLoader.build` is the pure entry point to test; `load` only fetches. Optional data
+  goes in through `WeekContext`. Run `xcodegen generate` after adding a test file.
 - `.github/workflows/ci.yml` generates the project and runs `xcodebuild test` on a macOS runner.
 
 ## Not done
-- Interactive league-flip button; Live Activity (needs a push server); see README "Ideas".
+- Interactive league-flip button; Live Activity (needs a push server); win probability; see README "Ideas".
 
 ## Code style
 - Always use braces for loops/conditionals, even single-statement bodies.
