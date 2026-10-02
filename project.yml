@@ -7,6 +7,9 @@
 name: SleeperCompanion
 
 options:
+  # Stamps the project as checked by this Xcode, so it stops offering "Update to recommended
+  # settings" after every regenerate. Raise it when a newer Xcode starts asking again.
+  xcodeVersion: "27.0"
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -21,6 +24,11 @@ settings:
     CURRENT_PROJECT_VERSION: "3"
     SWIFT_VERSION: "5.0"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+    # Xcode's recommended settings, declared here so they survive regeneration.
+    STRING_CATALOG_GENERATE_SYMBOLS: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
 
 targets:
   SleeperCompanion:
