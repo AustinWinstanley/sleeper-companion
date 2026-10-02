@@ -15,7 +15,7 @@ options:
 settings:
   base:
     APP_BUNDLE_ID: com.austinwinstanley.sleepercompanion
-    DEVELOPMENT_TEAM: STK9NS6B5M
+    DEVELOPMENT_TEAM: 9WX89GD468
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "3"
